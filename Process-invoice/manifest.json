@@ -1,0 +1,59 @@
+{
+    "title": "Process image invoice to SQL",
+    "description": "Using a screenshot of the invoice, analyze the image and extract key value pairs to be stored in SQL database",
+    "prerequisites": "Before you can use this template, you need to configure Azure Document Intelligence and SQL server and database resources. Please look at guidance here: https://learn.microsoft.com/en-us/azure/azure-sql/database/single-database-create-quickstart?view=azuresql&tabs=azure-portal)",
+    "skus": [
+
+        "standard"
+    ],
+    "kinds": [
+        "stateful",
+        "stateless"
+    ],
+    "details": {
+        "By": "Microsoft",
+        "Type": "Workflow",
+        "Trigger": "Request"
+    },
+    "artifacts": [
+        {
+            "type": "workflow",
+            "file": "workflow.json"
+        }
+    ],
+    "images": {
+        "light": "snapshot_light",
+        "dark": "snapshot_dark"
+    },
+    "parameters": [
+        {
+            "name": "ImageUrl_ingest-from-sql",
+            "displayName": "Document/Image URL",
+            "type": "String",
+            "default": "",
+            "description": "This is a parameter to describe which invoice image you want to analyze (from HTTP request trigger)",
+            "required": true
+        },
+        {
+            "name": "TableName_ingest-from-sql",
+            "displayName": "Table name",
+            "type": "String",
+            "default": "true",
+            "description": "This is the table name in the database you want to push data into",
+            "required": true
+        }
+    ],
+    "connections": {
+        "formrecognizer": {
+            "api": {
+                "id": "/managedApis/formrecognizer"
+            }
+        },
+        "sql":{
+            "serviceProvider": {
+                "id": "/serviceProviders/sql"
+            }
+        }
+
+    }
+}

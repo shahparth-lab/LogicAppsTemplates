@@ -1,0 +1,219 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "Analyze_Invoice": {
+                "inputs": {
+                    "headers": {
+                        "inputFileUrl": "@triggerBody()?['imageUrl']"
+                    },
+                    "host": {
+                        "connection": {
+                            "referenceName": "formrecognizer"
+                        }
+                    },
+                    "method": "post",
+                    "path": "/v2.1/prebuilt/invoice/analyze",
+                    "queries": {
+                        "includeTextDetails": true
+                    }
+                },
+                "runAfter": {},
+                "type": "ApiConnection"
+            },
+            "For_each": {
+                "actions": {
+                    "Compose": {
+                        "inputs": {
+                            "address": "@item()?['fields']?['BillingAddress']",
+                            "amount": "@item()?['fields']?['AmountDue']?['text']",
+                            "name": "@item()?['fields']?['CustomerName']",
+                            "orderDate": "@item()?['fields']?['InvoiceDate']?['valueDate']"
+                        },
+                        "type": "Compose"
+                    },
+                    "Extract_right_elements_from_JSON": {
+                        "inputs": {
+                            "address": "@body('Parse_JSON')?['address']['text']",
+                            "amount": "@body('Parse_JSON')?['amount']",
+                            "name": "@body('Parse_JSON')?['name']['text']",
+                            "orderDate": "@body('Parse_JSON')?['orderDate']"
+                        },
+                        "runAfter": {
+                            "Parse_JSON": [
+                                "SUCCEEDED"
+                            ]
+                        },
+                        "type": "Compose"
+                    },
+                    "Insert_row": {
+                        "inputs": {
+                            "parameters": {
+                                "setColumns": {
+                                    "Address": "@{body('Parse_JSON_1')?['address']}",
+                                    "Amount": "@{body('Parse_JSON_1')?['amount']}",
+                                    "Date": "@{body('Parse_JSON_1')?['orderDate']}",
+                                    "OrderName": "@{body('Parse_JSON_1')?['name']}"
+                                },
+                                "tableName": "[dbo].[Invoices]"
+                            },
+                            "serviceProviderConfiguration": {
+                                "connectionName": "sql",
+                                "operationId": "insertRow",
+                                "serviceProviderId": "/serviceProviders/sql"
+                            }
+                        },
+                        "runAfter": {
+                            "Parse_JSON_1": [
+                                "SUCCEEDED"
+                            ]
+                        },
+                        "type": "ServiceProvider"
+                    },
+                    "Parse_JSON": {
+                        "inputs": {
+                            "content": "@outputs('Compose')",
+                            "schema": {
+                                "properties": {
+                                    "body": {
+                                        "properties": {
+                                            "address": {
+                                                "properties": {
+                                                    "boundingBox": {
+                                                        "items": {
+                                                            "type": "integer"
+                                                        },
+                                                        "type": "array"
+                                                    },
+                                                    "confidence": {
+                                                        "type": "number"
+                                                    },
+                                                    "elements": {
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": "array"
+                                                    },
+                                                    "page": {
+                                                        "type": "integer"
+                                                    },
+                                                    "text": {
+                                                        "type": "string"
+                                                    },
+                                                    "type": {
+                                                        "type": "string"
+                                                    },
+                                                    "valueString": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "amount": {
+                                                "type": "string"
+                                            },
+                                            "name": {
+                                                "properties": {
+                                                    "boundingBox": {
+                                                        "type": "array"
+                                                    },
+                                                    "confidence": {
+                                                        "type": "number"
+                                                    },
+                                                    "elements": {
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": "array"
+                                                    },
+                                                    "page": {
+                                                        "type": "integer"
+                                                    },
+                                                    "text": {
+                                                        "type": "string"
+                                                    },
+                                                    "type": {
+                                                        "type": "string"
+                                                    },
+                                                    "valueString": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "orderDate": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "runAfter": {
+                            "Compose": [
+                                "SUCCEEDED"
+                            ]
+                        },
+                        "type": "ParseJson"
+                    },
+                    "Parse_JSON_1": {
+                        "inputs": {
+                            "content": "@outputs('Extract_right_elements_from_JSON')",
+                            "schema": {
+                                "properties": {
+                                    "address": {
+                                        "type": "string"
+                                    },
+                                    "amount": {
+                                        "type": "string"
+                                    },
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "orderDate": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "runAfter": {
+                            "Extract_right_elements_from_JSON": [
+                                "SUCCEEDED"
+                            ]
+                        },
+                        "type": "ParseJson"
+                    }
+                },
+                "foreach": "@body('Analyze_Invoice')?['analyzeResult']?['documentResults']",
+                "runAfter": {
+                    "Analyze_Invoice": [
+                        "SUCCEEDED"
+                    ]
+                },
+                "type": "foreach"
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "triggers": {
+            "When_a_HTTP_request_is_received": {
+                "inputs": {
+                    "schema": {
+                        "properties": {
+                            "imageUrl": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "kind": "Http",
+                "type": "Request"
+            }
+        }
+    },
+    "kind": "Stateful"
+}
